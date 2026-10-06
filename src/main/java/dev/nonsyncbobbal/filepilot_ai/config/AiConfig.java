@@ -2,13 +2,23 @@ package dev.nonsyncbobbal.filepilot_ai.config;
 
 import org.springframework.ai.chat.client.ChatClient;
 
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AiConfig {
+
+    @Bean
+    public ChatMemory chatMemory() {
+        return MessageWindowChatMemory.builder()
+                .maxMessages(10)
+                .build();
+    }
 
     @Bean
     public ChatClient chatClient(ChatClient.Builder chatClientBuilder,
@@ -39,7 +49,9 @@ public class AiConfig {
                         that the operation was completed.
                         """)
                 .defaultTools(toolCallbackProvider)
-                .defaultAdvisors(new SimpleLoggerAdvisor())
+                .defaultAdvisors( MessageChatMemoryAdvisor
+                        .builder(chatMemory())
+                        .build(), new SimpleLoggerAdvisor())
                 .build();
     }
 }
