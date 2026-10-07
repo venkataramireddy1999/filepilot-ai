@@ -225,6 +225,21 @@ filepilot-ai/
 
 ---
 
+## Design notes
+
+**`userId` and `chatId` scope the conversation, not the files.** The conversation ID (`userId:chatId`) only decides which chat history the model sees. File access is controlled separately by the MCP filesystem server, which is rooted at one directory (`/data/documents`) shared by every request. So two users get separate chat histories but operate on the same folder.
+
+This is a deliberate trade-off for a single-user, local-first tool. If it were extended to multiple users, I would:
+
+1. Take the user identity from an authenticated principal (for example a JWT) instead of trusting `userId` in the request body.
+2. Give each user an isolated folder (such as `/data/documents/<userId>`) with its own MCP server instance rooted there, since one shared server cannot enforce per-user boundaries.
+3. Use an unambiguous conversation ID format (the current `userId:chatId` could collide if either value contains `:`).
+4. Move chat memory to a persistent store (JDBC or Redis), since in-memory history is lost on restart and grows with every conversation.
+
+**Conclusions.** Using MCP kept the project small: file operations come from a ready-made server and the Spring code is only the glue (controller, service, `ChatClient` configuration). The main lesson was that the interesting design work is not calling the model but deciding the boundaries around it: what it can touch (the mounted folder, read-only or read-write), who it acts for (identity), and how it reports results (the verify-before-claiming-success system prompt).
+
+---
+
 ## Limitations
 
 - Chat memory is in-memory, so it resets when the container restarts.
@@ -236,7 +251,7 @@ filepilot-ai/
 ## Roadmap
 
 - [ ] Persistent chat memory (database-backed)
-- [ ] Authentication and per-user folders
+- [ ] Authentication (identity from JWT) and per-user folder isolation
 - [ ] Streaming responses
 - [ ] Support for additional MCP servers (Git, databases, web)
 - [ ] Support for other model providers
